@@ -9,6 +9,7 @@ from app.core.security import hash_password
 from app.db.models.chat import ChatMessage, ChatSession
 from app.db.models.document import Chunk, Document
 from app.db.models.enums import (
+    ChunkMethod,
     DocumentStatus,
     ExpenseStatus,
     MessageRole,
@@ -50,6 +51,9 @@ async def test_user_role_kb_flow(async_session):
         visibility_scope=VisibilityScope.company,
         org_id=org.id,
         owner_id=user.id,
+        chunk_method=ChunkMethod.sentence,
+        chunk_size=1024,
+        chunk_overlap=128,
     )
     async_session.add(kb)
     await async_session.commit()
@@ -81,6 +85,9 @@ async def test_document_chat_and_expense(async_session):
         visibility_scope=VisibilityScope.company,
         org_id=org.id,
         owner_id=user.id,
+        chunk_method=ChunkMethod.sentence,
+        chunk_size=1024,
+        chunk_overlap=128,
     )
     async_session.add(kb)
     await async_session.flush()

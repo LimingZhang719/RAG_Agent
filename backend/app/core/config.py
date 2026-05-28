@@ -44,6 +44,9 @@ class Settings(BaseSettings):
     embedding_model: str = "text-embedding-v3"
     rerank_model: str = "gte-rerank"
     ocr_provider: str = "external_api"
+    rerank_api_base: str = ""
+    rerank_api_key: str = ""
+    rerank_enabled: bool = False
 
     celery_broker_url: str = ""
     celery_result_backend: str = ""
@@ -52,6 +55,16 @@ class Settings(BaseSettings):
     ingest_max_file_mb: int = 20
     ingest_chunk_size: int = 1024
     ingest_chunk_overlap: int = 128
+
+    rag_top_k: int = 8
+    rag_score_threshold: float = 0.0
+    rerank_top_k: int = 6
+    keyword_recall_enabled: bool = True
+    keyword_top_k: int = 6
+    hybrid_fusion_method: str = "weighted"
+    prompt_template_name: str = "rag_structured"
+    prompt_template_version: str = "v1"
+    rule_match_threshold: float = 0.6
 
     pgvector_table: str = "chunks"
     pgvector_schema: str = "public"
