@@ -10,6 +10,7 @@ from app.db.models.enums import RoleName, VisibilityScope
 from app.db.models.knowledge_base import KnowledgeBase
 from app.db.models.user import User
 from app.schemas.knowledge_base import KnowledgeBaseCreate, KnowledgeBaseUpdate
+from app.core.config import settings
 
 
 def _is_admin(user: User) -> bool:
@@ -84,6 +85,9 @@ async def create_knowledge_base(
         org_id=org_id,
         owner_id=owner_id,
         is_active=True,
+        chunk_method=payload.chunk_method,
+        chunk_size=payload.chunk_size or settings.ingest_chunk_size,
+        chunk_overlap=payload.chunk_overlap or settings.ingest_chunk_overlap,
     )
     session.add(kb)
     await session.commit()

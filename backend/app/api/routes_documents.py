@@ -14,6 +14,7 @@ from app.db.session import get_session
 from app.schemas.document import (
     ChunkListResponse,
     ChunkResponse,
+    DocumentChunkingUpdate,
     DocumentListResponse,
     DocumentResponse,
 )
@@ -24,6 +25,7 @@ from app.services.document_service import (
     list_chunks,
     list_documents,
     mark_document_status,
+    update_document_chunking,
 )
 from app.services.knowledge_base_service import get_knowledge_base
 from app.storage.minio_client import MinioStorage
@@ -122,3 +124,27 @@ async def retry_document(
     await mark_document_status(session, doc_id, DocumentStatus.pending, None)
     ingest_document_task.delay(str(doc_id))
     return {"status": "queued"}
+
+
+@router.patch("/{doc_id}/chunking", response_model=DocumentResponse)
+async def update_document_chunking_config(
+    doc_id: UUID,
+    payload: DocumentChunkingUpdate,
+    session: AsyncSession = Depends(get_session),
+    current_user=Depends(get_current_user),
+) -> DocumentResponse:
+    doc = await get_document(session, doc_id)
+    await get_knowledge_base(session, doc.kb_id, current_user)
+
+    doc = await update_document_chunking(
+        session,
+        doc_id,
+        payload.chunk_method,
+        payload.chunk_size,
+        payload.chunk_overlap,
+    )
+    await clear_document_content(session, doc_id)
+    await mark_document_status(session, doc_id, DocumentStatus.pending, None)
+    ingest_document_task.delay(str(doc_id))
+    refreshed = await get_document(session, doc_id)
+    return DocumentResponse.model_validate(refreshed)

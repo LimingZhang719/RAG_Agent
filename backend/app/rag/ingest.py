@@ -9,12 +9,12 @@ from uuid import UUID
 
 from llama_index.core import Document as LlamaDocument
 from llama_index.core import SimpleDirectoryReader
-from llama_index.core.node_parser import SentenceSplitter
+from llama_index.core.node_parser import SentenceSplitter, TokenTextSplitter
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.db.models.document import Document, DocumentBlock, Chunk
-from app.db.models.enums import BlockType, DocumentStatus
+from app.db.models.enums import BlockType, ChunkMethod, DocumentStatus
 from app.db.models.knowledge_base import KnowledgeBase
 from app.rag.embedding_client import build_embedding_client
 from app.storage.minio_client import MinioStorage, parse_minio_uri
@@ -65,10 +65,22 @@ def ingest_document_sync(session: Session, document_id: UUID) -> IngestResult:
         document.status = DocumentStatus.chunking
         session.commit()
 
-        splitter = SentenceSplitter(
-            chunk_size=settings.ingest_chunk_size,
-            chunk_overlap=settings.ingest_chunk_overlap,
-        )
+        chunk_method = document.chunk_method or kb.chunk_method
+        chunk_size = document.chunk_size or kb.chunk_size
+        chunk_overlap = document.chunk_overlap or kb.chunk_overlap
+
+        if chunk_method == ChunkMethod.sentence:
+            splitter = SentenceSplitter(
+                chunk_size=chunk_size,
+                chunk_overlap=chunk_overlap,
+            )
+        elif chunk_method == ChunkMethod.token:
+            splitter = TokenTextSplitter(
+                chunk_size=chunk_size,
+                chunk_overlap=chunk_overlap,
+            )
+        else:
+            raise ValueError("Unsupported chunk method")
         nodes = splitter.get_nodes_from_documents(documents)
 
         document.status = DocumentStatus.embedding

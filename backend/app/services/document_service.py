@@ -31,6 +31,9 @@ async def create_document(
         size=size,
         status=DocumentStatus.pending,
         created_by=user.id,
+        chunk_method=kb.chunk_method,
+        chunk_size=kb.chunk_size,
+        chunk_overlap=kb.chunk_overlap,
     )
     session.add(doc)
     await session.commit()
@@ -80,3 +83,19 @@ async def clear_document_content(session: AsyncSession, document_id: UUID) -> No
     )
     await session.execute(delete(Chunk).where(Chunk.document_id == document_id))
     await session.commit()
+
+
+async def update_document_chunking(
+    session: AsyncSession,
+    document_id: UUID,
+    chunk_method,
+    chunk_size: int,
+    chunk_overlap: int,
+) -> Document:
+    doc = await get_document(session, document_id)
+    doc.chunk_method = chunk_method
+    doc.chunk_size = chunk_size
+    doc.chunk_overlap = chunk_overlap
+    await session.commit()
+    await session.refresh(doc)
+    return doc

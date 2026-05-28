@@ -5,7 +5,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
-from app.db.models.enums import DocumentStatus
+from app.db.models.enums import ChunkMethod, DocumentStatus
 
 
 class DocumentResponse(BaseModel):
@@ -20,6 +20,9 @@ class DocumentResponse(BaseModel):
     status: DocumentStatus
     error_message: str | None
     created_by: UUID | None
+    chunk_method: ChunkMethod | None
+    chunk_size: int | None
+    chunk_overlap: int | None
     created_at: datetime
     updated_at: datetime
 
@@ -44,3 +47,9 @@ class ChunkResponse(BaseModel):
 
 class ChunkListResponse(BaseModel):
     items: list[ChunkResponse]
+
+
+class DocumentChunkingUpdate(BaseModel):
+    chunk_method: ChunkMethod
+    chunk_size: int
+    chunk_overlap: int
