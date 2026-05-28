@@ -26,3 +26,21 @@ class DocumentResponse(BaseModel):
 
 class DocumentListResponse(BaseModel):
     items: list[DocumentResponse]
+
+
+class ChunkResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    document_id: UUID
+    content: str
+    content_hash: str
+    page_no: int | None
+    block_order: int | None
+    section_path: str | None
+    is_deterministic_rule: bool
+    rule_name: str | None
+
+
+class ChunkListResponse(BaseModel):
+    items: list[ChunkResponse]

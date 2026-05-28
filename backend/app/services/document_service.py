@@ -45,6 +45,15 @@ async def list_documents(session: AsyncSession, kb_id: UUID) -> list[Document]:
     return list(result.scalars().all())
 
 
+async def list_chunks(session: AsyncSession, document_id: UUID) -> list[Chunk]:
+    result = await session.execute(
+        select(Chunk)
+        .where(Chunk.document_id == document_id)
+        .order_by(Chunk.block_order.asc())
+    )
+    return list(result.scalars().all())
+
+
 async def get_document(session: AsyncSession, doc_id: UUID) -> Document:
     result = await session.execute(select(Document).where(Document.id == doc_id))
     doc = result.scalar_one_or_none()

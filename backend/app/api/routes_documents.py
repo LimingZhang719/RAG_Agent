@@ -11,11 +11,17 @@ from app.core.exceptions import AppError
 from app.core.security import get_current_user
 from app.db.models.enums import DocumentStatus
 from app.db.session import get_session
-from app.schemas.document import DocumentListResponse, DocumentResponse
+from app.schemas.document import (
+    ChunkListResponse,
+    ChunkResponse,
+    DocumentListResponse,
+    DocumentResponse,
+)
 from app.services.document_service import (
     clear_document_content,
     create_document,
     get_document,
+    list_chunks,
     list_documents,
     mark_document_status,
 )
@@ -87,6 +93,20 @@ async def get_document_detail(
     doc = await get_document(session, doc_id)
     await get_knowledge_base(session, doc.kb_id, current_user)
     return DocumentResponse.model_validate(doc)
+
+
+@router.get("/{doc_id}/chunks", response_model=ChunkListResponse)
+async def list_document_chunks(
+    doc_id: UUID,
+    session: AsyncSession = Depends(get_session),
+    current_user=Depends(get_current_user),
+) -> ChunkListResponse:
+    doc = await get_document(session, doc_id)
+    await get_knowledge_base(session, doc.kb_id, current_user)
+    chunks = await list_chunks(session, doc_id)
+    return ChunkListResponse(
+        items=[ChunkResponse.model_validate(chunk) for chunk in chunks]
+    )
 
 
 @router.post("/{doc_id}/retry")
