@@ -38,9 +38,23 @@ class Settings(BaseSettings):
     model_base_url: str = "https://api.example.com/v1"
     model_api_key: str = ""
     llm_model: str = "qwen-plus"
+    embedding_provider: str = "openai_compatible"
+    embedding_api_base: str = ""
+    embedding_api_key: str = ""
     embedding_model: str = "text-embedding-v3"
     rerank_model: str = "gte-rerank"
     ocr_provider: str = "external_api"
+
+    celery_broker_url: str = ""
+    celery_result_backend: str = ""
+
+    ingest_batch_size: int = 64
+    ingest_max_file_mb: int = 20
+    ingest_chunk_size: int = 1024
+    ingest_chunk_overlap: int = 128
+
+    pgvector_table: str = "chunks"
+    pgvector_schema: str = "public"
 
     jwt_secret_key: str = "change-me"
     jwt_algorithm: str = "HS256"
