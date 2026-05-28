@@ -3,7 +3,8 @@ import { Button, Card, Space, Tag, Typography } from "antd";
 import {
   ApiOutlined,
   CloudServerOutlined,
-  DatabaseOutlined
+  DatabaseOutlined,
+  RobotOutlined
 } from "@ant-design/icons";
 
 import { getHealth } from "../../api/health";
