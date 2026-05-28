@@ -1,0 +1,77 @@
+html,
+body,
+#root {
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  background: #f5f7fb;
+}
+
+.app-shell {
+  min-height: 100vh;
+  background: #f5f7fb;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #111827;
+  padding: 0 28px;
+}
+
+.brand-icon,
+.brand-text {
+  color: #ffffff;
+  font-size: 18px;
+}
+
+.brand-text {
+  font-weight: 600;
+}
+
+.app-content {
+  width: min(1120px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: 48px 0;
+}
+
+.intro {
+  margin-bottom: 28px;
+}
+
+.intro h1 {
+  margin-bottom: 12px;
+}
+
+.health-message {
+  margin-top: 16px;
+}
+
+.module-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.module-icon {
+  color: #1677ff;
+  font-size: 28px;
+}
+
+@media (max-width: 860px) {
+  .module-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .app-header {
+    padding: 0 16px;
+  }
+
+  .app-content {
+    width: min(100% - 28px, 1120px);
+    padding: 32px 0;
+  }
+}
