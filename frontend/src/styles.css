@@ -134,6 +134,36 @@ body,
   gap: 20px;
 }
 
+.chat-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 16px;
+}
+
+.kb-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 260px;
+  flex: 1;
+}
+
+.kb-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.chat-session-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .chat-window {
   border-radius: 16px;
   box-shadow: var(--card-shadow);
@@ -145,12 +175,42 @@ body,
   flex-direction: column;
   gap: 12px;
   padding-bottom: 16px;
+  max-height: 420px;
+  overflow-y: auto;
 }
 
 .chat-message {
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+.chat-markdown {
+  color: var(--ink-900);
+  line-height: 1.65;
+}
+
+.chat-markdown h1,
+.chat-markdown h2,
+.chat-markdown h3 {
+  margin: 12px 0 8px;
+  font-weight: 600;
+}
+
+.chat-markdown ul,
+.chat-markdown ol {
+  padding-left: 20px;
+  margin: 8px 0;
+}
+
+.chat-markdown p {
+  margin: 6px 0;
+}
+
+.chat-markdown code {
+  padding: 2px 6px;
+  background: var(--surface-200);
+  border-radius: 6px;
 }
 
 .chat-input {
@@ -194,6 +254,10 @@ body,
 .uploader-dragger {
   border-radius: 12px;
   background: var(--surface-0);
+}
+
+.table-row-active td {
+  background: rgba(37, 99, 235, 0.08) !important;
 }
 
 .auth-shell,

@@ -18,6 +18,7 @@ frontend/dist/
 # IDE
 .idea/
 .vscode/
+.history/
 
 # OS
 Thumbs.db
