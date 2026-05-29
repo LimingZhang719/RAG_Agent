@@ -7,10 +7,15 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import AppError
-from app.db.models.document import Document, DocumentBlock, Chunk
+from app.db.models.document import Chunk, Document, DocumentBlock
 from app.db.models.enums import DocumentStatus
 from app.db.models.knowledge_base import KnowledgeBase
 from app.db.models.user import User
+from app.services.knowledge_base_service import (
+    can_manage_knowledge_base,
+    get_knowledge_base,
+)
+from app.storage.minio_client import MinioStorage, parse_minio_uri
 
 
 async def create_document(
@@ -43,7 +48,9 @@ async def create_document(
 
 async def list_documents(session: AsyncSession, kb_id: UUID) -> list[Document]:
     result = await session.execute(
-        select(Document).where(Document.kb_id == kb_id).order_by(Document.created_at.desc())
+        select(Document)
+        .where(Document.kb_id == kb_id)
+        .order_by(Document.created_at.desc())
     )
     return list(result.scalars().all())
 
@@ -99,3 +106,21 @@ async def update_document_chunking(
     await session.commit()
     await session.refresh(doc)
     return doc
+
+
+async def delete_document(session: AsyncSession, document_id: UUID, user: User) -> None:
+    doc = await get_document(session, document_id)
+    kb = await get_knowledge_base(session, doc.kb_id, user)
+    if not can_manage_knowledge_base(kb, user):
+        raise AppError("Forbidden", status_code=403)
+
+    _, object_name = parse_minio_uri(doc.file_uri)
+    storage = MinioStorage()
+    storage.remove_object(object_name)
+
+    await session.execute(
+        delete(DocumentBlock).where(DocumentBlock.document_id == doc.id)
+    )
+    await session.execute(delete(Chunk).where(Chunk.document_id == doc.id))
+    await session.execute(delete(Document).where(Document.id == doc.id))
+    await session.commit()

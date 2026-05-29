@@ -5,16 +5,22 @@ from uuid import UUID
 from sqlalchemy import delete, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.exceptions import AppError
+from app.db.models.document import Chunk, Document, DocumentBlock
 from app.db.models.enums import RoleName, VisibilityScope
-from app.db.models.knowledge_base import KnowledgeBase
+from app.db.models.knowledge_base import KnowledgeBase, KnowledgeBaseAcl
 from app.db.models.user import User
 from app.schemas.knowledge_base import KnowledgeBaseCreate, KnowledgeBaseUpdate
-from app.core.config import settings
+from app.storage.minio_client import MinioStorage, parse_minio_uri
 
 
 def _is_admin(user: User) -> bool:
     return any(role.name == RoleName.admin for role in user.roles)
+
+
+def can_manage_knowledge_base(kb: KnowledgeBase, user: User) -> bool:
+    return _is_admin(user) or kb.owner_id == user.id
 
 
 def _visibility_filters(user: User):
@@ -31,7 +37,9 @@ def _visibility_filters(user: User):
     )
 
 
-async def list_knowledge_bases(session: AsyncSession, user: User) -> list[KnowledgeBase]:
+async def list_knowledge_bases(
+    session: AsyncSession, user: User
+) -> list[KnowledgeBase]:
     query = select(KnowledgeBase)
     if not _is_admin(user):
         query = query.where(_visibility_filters(user))
@@ -102,7 +110,7 @@ async def update_knowledge_base(
     payload: KnowledgeBaseUpdate,
 ) -> KnowledgeBase:
     kb = await get_knowledge_base(session, kb_id, user)
-    if not _is_admin(user) and kb.owner_id != user.id:
+    if not can_manage_knowledge_base(kb, user):
         raise AppError("Forbidden", status_code=403)
 
     data = payload.model_dump(exclude_unset=True)
@@ -117,7 +125,28 @@ async def delete_knowledge_base(
     session: AsyncSession, kb_id: UUID, user: User
 ) -> None:
     kb = await get_knowledge_base(session, kb_id, user)
-    if not _is_admin(user) and kb.owner_id != user.id:
+    if not can_manage_knowledge_base(kb, user):
         raise AppError("Forbidden", status_code=403)
+
+    result = await session.execute(select(Document).where(Document.kb_id == kb.id))
+    documents = list(result.scalars().all())
+    document_ids = [document.id for document in documents]
+
+    storage = MinioStorage()
+    for document in documents:
+        _, object_name = parse_minio_uri(document.file_uri)
+        storage.remove_object(object_name)
+
+    if document_ids:
+        await session.execute(delete(Chunk).where(Chunk.document_id.in_(document_ids)))
+        await session.execute(
+            delete(DocumentBlock).where(DocumentBlock.document_id.in_(document_ids))
+        )
+        await session.execute(delete(Document).where(Document.id.in_(document_ids)))
+
+    await session.execute(delete(Chunk).where(Chunk.kb_id == kb.id))
+    await session.execute(
+        delete(KnowledgeBaseAcl).where(KnowledgeBaseAcl.kb_id == kb.id)
+    )
     await session.execute(delete(KnowledgeBase).where(KnowledgeBase.id == kb.id))
     await session.commit()

@@ -21,6 +21,7 @@ from app.schemas.document import (
 from app.services.document_service import (
     clear_document_content,
     create_document,
+    delete_document,
     get_document,
     list_chunks,
     list_documents,
@@ -124,6 +125,16 @@ async def retry_document(
     await mark_document_status(session, doc_id, DocumentStatus.pending, None)
     ingest_document_task.delay(str(doc_id))
     return {"status": "queued"}
+
+
+@router.delete("/{doc_id}")
+async def delete_document_item(
+    doc_id: UUID,
+    session: AsyncSession = Depends(get_session),
+    current_user=Depends(get_current_user),
+) -> dict[str, str]:
+    await delete_document(session, doc_id, current_user)
+    return {"status": "ok"}
 
 
 @router.patch("/{doc_id}/chunking", response_model=DocumentResponse)
