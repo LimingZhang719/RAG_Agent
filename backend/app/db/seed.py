@@ -12,14 +12,41 @@ from app.db.models.user import User
 from app.db.models.user_role import UserRole
 from app.db.session import AsyncSessionLocal
 
+DEFAULT_ORGANIZATIONS = [
+    "办公室",
+    "组织部",
+    "党建",
+    "财务",
+    "计划部",
+    "科技部",
+    "主网中心",
+    "配网中心",
+    "自控中心",
+    "设计中心",
+    "技经中心汇总",
+    "数据中心",
+    "管评中心",
+    "评审中心",
+    "监造中心标段",
+]
+
 
 async def seed() -> None:
     async with AsyncSessionLocal() as session:
-        org = await session.scalar(select(Organization).where(Organization.name == "HQ"))
+        org = await session.scalar(
+            select(Organization).where(Organization.name == "HQ")
+        )
         if org is None:
             org = Organization(name="HQ")
             session.add(org)
             await session.flush()
+
+        for org_name in DEFAULT_ORGANIZATIONS:
+            existing_org = await session.scalar(
+                select(Organization).where(Organization.name == org_name)
+            )
+            if existing_org is None:
+                session.add(Organization(name=org_name))
 
         roles_by_name: dict[RoleName, Role] = {}
         for role_name in RoleName:
