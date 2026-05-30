@@ -138,7 +138,7 @@ body,
   display: flex;
   flex-wrap: wrap;
   gap: 16px;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
   margin-top: 16px;
 }
@@ -147,8 +147,12 @@ body,
   display: flex;
   flex-direction: column;
   gap: 8px;
-  min-width: 260px;
+  min-width: 280px;
   flex: 1;
+}
+
+.kb-selector .ant-select {
+  width: 100%;
 }
 
 .kb-option {
@@ -160,7 +164,58 @@ body,
 
 .chat-session-actions {
   display: flex;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.chat-session-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 220px;
+}
+
+.chat-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.chat-settings-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.chat-settings-row {
+  display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.chat-settings-row > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.chat-settings-temperature {
+  width: 100%;
+}
+
+.chat-settings-temperature .ant-slider {
+  flex: 1;
+  margin-inline: 8px 16px;
+}
+
+.chat-settings-temperature .ant-input-number {
+  width: 88px;
+}
+
+.chat-settings-danger {
+  display: flex;
+  flex-direction: column;
   gap: 12px;
 }
 
@@ -270,9 +325,13 @@ body,
 
 .auth-card,
 .state-card {
-  width: min(420px, 100%);
+  width: min(520px, 100%);
   border-radius: 20px;
   box-shadow: var(--card-shadow);
+}
+
+.auth-alert {
+  margin-bottom: 16px;
 }
 
 .auth-hint {
@@ -296,5 +355,19 @@ body,
 
   .brand-name {
     display: none;
+  }
+
+  .chat-toolbar,
+  .chat-session-actions {
+    width: 100%;
+  }
+
+  .chat-session-actions {
+    flex-wrap: wrap;
+  }
+
+  .chat-session-field {
+    flex: 1;
+    min-width: 220px;
   }
 }

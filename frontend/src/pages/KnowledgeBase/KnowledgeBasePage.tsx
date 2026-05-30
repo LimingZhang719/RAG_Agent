@@ -7,24 +7,29 @@ import {
   InputNumber,
   Modal,
   Drawer,
+  Popconfirm,
   Row,
   Select,
   Table,
+  Tabs,
   Tag,
   Typography,
   message
 } from "antd";
 import type { UploadProps } from "antd";
+import { DeleteOutlined, ReloadOutlined } from "@ant-design/icons";
 import { useEffect, useMemo, useState } from "react";
 
 import {
   createKnowledgeBase,
+  deleteKnowledgeBase,
   fetchKnowledgeBases,
   type ChunkMethod,
   type KnowledgeBaseItem,
   type VisibilityScope
 } from "../../api/kb";
 import {
+  deleteDocument,
   fetchDocuments,
   fetchDocumentChunks,
   retryDocument,
@@ -33,6 +38,7 @@ import {
   type ChunkItem,
   type DocumentItem
 } from "../../api/documents";
+import { DocumentPreview } from "../../components/DocumentPreview/DocumentPreview";
 import { FileUploader } from "../../components/FileUploader/FileUploader";
 import { useUserStore } from "../../stores/userStore";
 
@@ -66,14 +72,24 @@ export function KnowledgeBasePage() {
   const [loadingDocs, setLoadingDocs] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
-  const [chunkDrawerOpen, setChunkDrawerOpen] = useState(false);
+  const [documentViewerOpen, setDocumentViewerOpen] = useState(false);
   const [chunkLoading, setChunkLoading] = useState(false);
   const [chunkItems, setChunkItems] = useState<ChunkItem[]>([]);
   const [activeDocument, setActiveDocument] = useState<DocumentItem | null>(null);
   const [chunkConfigOpen, setChunkConfigOpen] = useState(false);
   const [chunkConfigLoading, setChunkConfigLoading] = useState(false);
+  const [deletingKbId, setDeletingKbId] = useState<string | null>(null);
+  const [deletingDocumentId, setDeletingDocumentId] = useState<string | null>(
+    null
+  );
+  const [reingestingDocumentId, setReingestingDocumentId] = useState<
+    string | null
+  >(null);
 
   const user = useUserStore((state) => state.user);
+
+  const canManageKb = (kb: KnowledgeBaseItem) =>
+    Boolean(user?.roles.includes("admin") || kb.owner_id === user?.id);
 
   const loadKnowledgeBases = async () => {
     setLoadingKb(true);
@@ -88,7 +104,7 @@ export function KnowledgeBasePage() {
         setKbs([]);
         message.error("知识库数据格式异常");
       }
-    } catch (error) {
+    } catch {
       message.error("知识库加载失败");
     } finally {
       setLoadingKb(false);
@@ -105,7 +121,7 @@ export function KnowledgeBasePage() {
         setDocuments([]);
         message.error("文档数据格式异常");
       }
-    } catch (error) {
+    } catch {
       message.error("文档列表加载失败");
     } finally {
       setLoadingDocs(false);
@@ -134,7 +150,7 @@ export function KnowledgeBasePage() {
         if (Array.isArray(items)) {
           setDocuments(items);
         }
-      } catch (error) {
+      } catch {
         // Keep silent during polling to avoid noisy errors.
       }
     }, 5000);
@@ -188,16 +204,78 @@ export function KnowledgeBasePage() {
       message.success("知识库已创建");
       setCreateOpen(false);
       await loadKnowledgeBases();
-    } catch (error) {
+    } catch {
       message.error("创建失败");
     } finally {
       setCreateLoading(false);
     }
   };
 
-  const openChunks = async (doc: DocumentItem) => {
+  const handleDeleteKnowledgeBase = async (kb: KnowledgeBaseItem) => {
+    setDeletingKbId(kb.id);
+    try {
+      await deleteKnowledgeBase(kb.id);
+      message.success("知识库已删除");
+
+      const items = await fetchKnowledgeBases();
+      setKbs(Array.isArray(items) ? items : []);
+      if (selectedKb?.id === kb.id) {
+        setSelectedKb(items[0] ?? null);
+        if (!items.length) {
+          setDocuments([]);
+        }
+      }
+    } catch {
+      message.error("知识库删除失败");
+    } finally {
+      setDeletingKbId(null);
+    }
+  };
+
+  const handleDeleteDocument = async (doc: DocumentItem) => {
+    setDeletingDocumentId(doc.id);
+    try {
+      await deleteDocument(doc.id);
+      message.success("文档已删除");
+      if (activeDocument?.id === doc.id) {
+        setDocumentViewerOpen(false);
+        setChunkConfigOpen(false);
+        setActiveDocument(null);
+        setChunkItems([]);
+      }
+      if (selectedKb) {
+        await loadDocuments(selectedKb.id);
+      }
+    } catch {
+      message.error("文档删除失败");
+    } finally {
+      setDeletingDocumentId(null);
+    }
+  };
+
+  const handleReingestDocument = async (doc: DocumentItem) => {
+    setReingestingDocumentId(doc.id);
+    try {
+      await retryDocument(doc.id);
+      message.success("已提交重新入库任务");
+      if (activeDocument?.id === doc.id) {
+        setDocumentViewerOpen(false);
+        setActiveDocument(null);
+        setChunkItems([]);
+      }
+      if (selectedKb) {
+        await loadDocuments(selectedKb.id);
+      }
+    } catch {
+      message.error("重新入库失败");
+    } finally {
+      setReingestingDocumentId(null);
+    }
+  };
+
+  const openDocumentViewer = async (doc: DocumentItem) => {
     setActiveDocument(doc);
-    setChunkDrawerOpen(true);
+    setDocumentViewerOpen(true);
     setChunkLoading(true);
     try {
       const items = await fetchDocumentChunks(doc.id);
@@ -207,11 +285,17 @@ export function KnowledgeBasePage() {
         setChunkItems([]);
         message.error("切片数据格式异常");
       }
-    } catch (error) {
+    } catch {
       message.error("切片加载失败");
     } finally {
       setChunkLoading(false);
     }
+  };
+
+  const closeDocumentViewer = () => {
+    setDocumentViewerOpen(false);
+    setActiveDocument(null);
+    setChunkItems([]);
   };
 
   const openChunkConfig = (doc: DocumentItem) => {
@@ -235,7 +319,7 @@ export function KnowledgeBasePage() {
       if (selectedKb) {
         await loadDocuments(selectedKb.id);
       }
-    } catch (error) {
+    } catch {
       message.error("切块配置更新失败");
     } finally {
       setChunkConfigLoading(false);
@@ -291,6 +375,30 @@ export function KnowledgeBasePage() {
                         : "个人级";
                     return <Tag color="blue">{label}</Tag>;
                   }
+                },
+                {
+                  title: "操作",
+                  key: "actions",
+                  render: (_: unknown, record) => (
+                    <Popconfirm
+                      title="确认删除该知识库？"
+                      description="该操作会删除知识库下所有文档、切片和索引数据。"
+                      okText="删除"
+                      cancelText="取消"
+                      okButtonProps={{ danger: true }}
+                      disabled={!canManageKb(record)}
+                      onConfirm={() => handleDeleteKnowledgeBase(record)}
+                    >
+                      <Button
+                        danger
+                        type="text"
+                        icon={<DeleteOutlined />}
+                        disabled={!canManageKb(record)}
+                        loading={deletingKbId === record.id}
+                        onClick={(event) => event.stopPropagation()}
+                      />
+                    </Popconfirm>
+                  )
                 }
               ]}
             />
@@ -328,7 +436,8 @@ export function KnowledgeBasePage() {
                         {value}
                         <Button
                           type="link"
-                          onClick={() => retryDocument(record.id)}
+                          loading={reingestingDocumentId === record.id}
+                          onClick={() => handleReingestDocument(record)}
                         >
                           重试
                         </Button>
@@ -338,16 +447,52 @@ export function KnowledgeBasePage() {
                     )
                 },
                 {
-                  title: "切片",
-                  key: "chunks",
+                  title: "操作",
+                  key: "actions",
                   render: (_: unknown, record) => (
                     <>
-                      <Button type="link" onClick={() => openChunks(record)}>
+                      <Button type="link" onClick={() => openDocumentViewer(record)}>
                         查看
                       </Button>
                       <Button type="link" onClick={() => openChunkConfig(record)}>
                         切块配置
                       </Button>
+                      <Popconfirm
+                        title="确认重新入库该文档？"
+                        description="该操作会重新解析、清洗、切块并生成向量索引。"
+                        okText="重新入库"
+                        cancelText="取消"
+                        disabled={!selectedKb || !canManageKb(selectedKb)}
+                        onConfirm={() => handleReingestDocument(record)}
+                      >
+                        <Button
+                          type="link"
+                          icon={<ReloadOutlined />}
+                          disabled={!selectedKb || !canManageKb(selectedKb)}
+                          loading={reingestingDocumentId === record.id}
+                        >
+                          重新入库
+                        </Button>
+                      </Popconfirm>
+                      <Popconfirm
+                        title="确认删除该文档？"
+                        description="该操作会删除原文件、解析块和向量切片。"
+                        okText="删除"
+                        cancelText="取消"
+                        okButtonProps={{ danger: true }}
+                        disabled={!selectedKb || !canManageKb(selectedKb)}
+                        onConfirm={() => handleDeleteDocument(record)}
+                      >
+                        <Button
+                          danger
+                          type="link"
+                          icon={<DeleteOutlined />}
+                          disabled={!selectedKb || !canManageKb(selectedKb)}
+                          loading={deletingDocumentId === record.id}
+                        >
+                          删除
+                        </Button>
+                      </Popconfirm>
                     </>
                   )
                 }
@@ -360,28 +505,53 @@ export function KnowledgeBasePage() {
       <Drawer
         title={
           activeDocument
-            ? `切片详情 - ${activeDocument.file_name}`
-            : "切片详情"
+            ? `文档查看 - ${activeDocument.file_name}`
+            : "文档查看"
         }
-        width={720}
-        open={chunkDrawerOpen}
-        onClose={() => setChunkDrawerOpen(false)}
+        width={960}
+        open={documentViewerOpen}
+        onClose={closeDocumentViewer}
+        destroyOnClose
       >
-        <Table
-          rowKey="id"
-          loading={chunkLoading}
-          dataSource={chunkItems}
-          pagination={{ pageSize: 10 }}
-          columns={[
-            { title: "序号", dataIndex: "block_order", key: "block_order" },
-            { title: "页码", dataIndex: "page_no", key: "page_no" },
-            { title: "段落", dataIndex: "section_path", key: "section_path" },
+        <Tabs
+          defaultActiveKey="source"
+          items={[
             {
-              title: "内容",
-              dataIndex: "content",
-              key: "content",
-              render: (value: string) => (
-                <span style={{ whiteSpace: "pre-wrap" }}>{value}</span>
+              key: "source",
+              label: "源文件",
+              children: <DocumentPreview document={activeDocument} />
+            },
+            {
+              key: "chunks",
+              label: "切块结果",
+              children: (
+                <Table
+                  rowKey="id"
+                  loading={chunkLoading}
+                  dataSource={chunkItems}
+                  pagination={{ pageSize: 10 }}
+                  columns={[
+                    {
+                      title: "序号",
+                      dataIndex: "block_order",
+                      key: "block_order"
+                    },
+                    { title: "页码", dataIndex: "page_no", key: "page_no" },
+                    {
+                      title: "段落",
+                      dataIndex: "section_path",
+                      key: "section_path"
+                    },
+                    {
+                      title: "内容",
+                      dataIndex: "content",
+                      key: "content",
+                      render: (value: string) => (
+                        <span style={{ whiteSpace: "pre-wrap" }}>{value}</span>
+                      )
+                    }
+                  ]}
+                />
               )
             }
           ]}

@@ -39,3 +39,7 @@ export async function createKnowledgeBase(
   const response = await apiClient.post("/knowledge-bases", payload);
   return response.data;
 }
+
+export async function deleteKnowledgeBase(kbId: string): Promise<void> {
+  await apiClient.delete(`/knowledge-bases/${kbId}`);
+}

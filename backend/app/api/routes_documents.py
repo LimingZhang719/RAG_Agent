@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import uuid
+from urllib.parse import quote
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Form, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Response, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -29,7 +30,7 @@ from app.services.document_service import (
     update_document_chunking,
 )
 from app.services.knowledge_base_service import get_knowledge_base
-from app.storage.minio_client import MinioStorage
+from app.storage.minio_client import MinioStorage, parse_minio_uri
 from app.workers.document_tasks import ingest_document_task
 
 router = APIRouter(prefix="/documents", tags=["documents"])
@@ -109,6 +110,28 @@ async def list_document_chunks(
     chunks = await list_chunks(session, doc_id)
     return ChunkListResponse(
         items=[ChunkResponse.model_validate(chunk) for chunk in chunks]
+    )
+
+
+@router.get("/{doc_id}/source")
+async def get_document_source(
+    doc_id: UUID,
+    session: AsyncSession = Depends(get_session),
+    current_user=Depends(get_current_user),
+) -> Response:
+    doc = await get_document(session, doc_id)
+    await get_knowledge_base(session, doc.kb_id, current_user)
+
+    _bucket, object_name = parse_minio_uri(doc.file_uri)
+    content = MinioStorage().download_to_bytes(object_name)
+    filename = quote(doc.file_name)
+    return Response(
+        content=content,
+        media_type=doc.file_type or "application/octet-stream",
+        headers={
+            "Content-Disposition": f"inline; filename*=UTF-8''{filename}",
+            "Cache-Control": "private, max-age=300",
+        },
     )
 
 

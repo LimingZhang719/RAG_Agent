@@ -69,6 +69,6 @@ export const appMenu: AppMenuItem[] = [
     label: "管理",
     path: "/admin",
     icon: SafetyOutlined,
-    roles: ["admin"]
+    roles: ["admin", "department_admin"]
   }
 ];

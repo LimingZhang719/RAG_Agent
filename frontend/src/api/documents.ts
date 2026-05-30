@@ -65,6 +65,17 @@ export async function retryDocument(docId: string): Promise<void> {
   await apiClient.post(`/documents/${docId}/retry`);
 }
 
+export async function deleteDocument(docId: string): Promise<void> {
+  await apiClient.delete(`/documents/${docId}`);
+}
+
+export async function fetchDocumentSource(docId: string): Promise<Blob> {
+  const response = await apiClient.get(`/documents/${docId}/source`, {
+    responseType: "blob"
+  });
+  return response.data;
+}
+
 export async function fetchDocumentChunks(docId: string): Promise<ChunkItem[]> {
   const response = await apiClient.get<ChunkListResponse>(
     `/documents/${docId}/chunks`

@@ -4,14 +4,28 @@ import { useAuthStore } from "../stores/authStore";
 
 export type ChatRole = "user" | "assistant" | "system";
 
+export interface ChatSessionSettings {
+  top_k: number;
+  rerank_enabled: boolean;
+  temperature: number;
+  system_prompt?: string | null;
+}
+
 export interface ChatSessionItem {
   id: string;
   user_id: string;
   title?: string | null;
   kb_ids?: string[] | null;
+  settings: ChatSessionSettings;
   is_archived: boolean;
   created_at: string;
   updated_at: string;
+}
+
+export interface ChatSessionUpdatePayload {
+  title?: string | null;
+  kb_ids?: string[] | null;
+  settings?: ChatSessionSettings;
 }
 
 export interface ChatMessageItem {
@@ -45,6 +59,8 @@ export interface ChatStreamPayload {
   kb_ids: string[];
   top_k?: number;
   rerank_enabled?: boolean;
+  temperature?: number;
+  system_prompt?: string | null;
 }
 
 const getApiBaseUrl = () => {
@@ -60,6 +76,34 @@ export async function fetchChatSessions(): Promise<ChatSessionItem[]> {
     throw new Error("Failed to load sessions");
   }
   return response.json();
+}
+
+export async function updateChatSession(
+  sessionId: string,
+  payload: ChatSessionUpdatePayload
+): Promise<ChatSessionItem> {
+  const response = await fetch(`${getApiBaseUrl()}/chat/sessions/${sessionId}`, {
+    method: "PATCH",
+    headers: {
+      ...buildAuthHeaders(),
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  });
+  if (!response.ok) {
+    throw new Error("Failed to update session");
+  }
+  return response.json();
+}
+
+export async function deleteChatSession(sessionId: string): Promise<void> {
+  const response = await fetch(`${getApiBaseUrl()}/chat/sessions/${sessionId}`, {
+    method: "DELETE",
+    headers: buildAuthHeaders()
+  });
+  if (!response.ok) {
+    throw new Error("Failed to delete session");
+  }
 }
 
 export async function fetchChatMessages(
@@ -129,7 +173,7 @@ export async function streamChat(
   }
 }
 
-const buildAuthHeaders = () => {
+const buildAuthHeaders = (): Record<string, string> => {
   const token = useAuthStore.getState().token;
   return token ? { Authorization: `Bearer ${token}` } : {};
 };

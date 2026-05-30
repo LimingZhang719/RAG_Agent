@@ -19,7 +19,14 @@ from app.db.models.user import User
 from app.rag.prompt_templates import build_messages
 from app.rag.retrievers import RetrievedChunk, retrieve_chunks
 from app.rag.rule_matcher import match_strong_rule
-from app.services.chat_service import create_message, create_session, get_session
+from app.services.chat_service import (
+    build_session_title,
+    create_message,
+    create_session,
+    ensure_session_title,
+    get_session,
+    get_session_settings,
+)
 from app.services.knowledge_base_service import get_knowledge_base
 from app.models_gateway.llm_client import build_llm_client
 
@@ -72,6 +79,8 @@ async def stream_chat(
     session_id: UUID | None,
     top_k: int | None,
     rerank_enabled: bool | None,
+    temperature: float | None,
+    system_prompt: str | None,
 ) -> StreamingResponse:
     async def _event_stream() -> AsyncGenerator[str, None]:
         try:
@@ -88,8 +97,45 @@ async def stream_chat(
             for kb_id in resolved_kb_ids:
                 await get_knowledge_base(session, kb_id, user)
 
+            session_settings = None
             if chat_session is None:
-                chat_session = await create_session(session, user, None, resolved_kb_ids)
+                from app.schemas.chat import ChatSessionSettings
+
+                session_settings = ChatSessionSettings(
+                    top_k=top_k or settings.rag_top_k,
+                    rerank_enabled=(
+                        rerank_enabled
+                        if rerank_enabled is not None
+                        else settings.rerank_enabled
+                    ),
+                    temperature=temperature if temperature is not None else 0.7,
+                    system_prompt=system_prompt,
+                )
+                chat_session = await create_session(
+                    session,
+                    user,
+                    build_session_title(question),
+                    resolved_kb_ids,
+                    settings=session_settings,
+                )
+            else:
+                await ensure_session_title(session, chat_session, question)
+                session_settings = get_session_settings(chat_session)
+
+            effective_top_k = top_k or session_settings.top_k
+            effective_rerank = (
+                rerank_enabled
+                if rerank_enabled is not None
+                else session_settings.rerank_enabled
+            )
+            effective_temperature = (
+                temperature if temperature is not None else session_settings.temperature
+            )
+            effective_system_prompt = (
+                system_prompt
+                if system_prompt is not None
+                else session_settings.system_prompt
+            )
 
             user_message = await create_message(
                 session=session,
@@ -105,8 +151,8 @@ async def stream_chat(
                 question,
                 resolved_kb_ids,
                 user,
-                top_k or settings.rag_top_k,
-                rerank_enabled=rerank_enabled,
+                effective_top_k,
+                rerank_enabled=effective_rerank,
             )
 
             retrieved_sorted = sorted(
@@ -134,9 +180,11 @@ async def stream_chat(
                 yield _serialize_event({"type": "delta", "content": answer_text})
             else:
                 context = _build_context(retrieved_sorted)
-                messages = build_messages(question, context)
+                messages = build_messages(question, context, effective_system_prompt)
                 llm_client = build_llm_client()
-                async for delta in llm_client.stream_chat(messages):
+                async for delta in llm_client.stream_chat(
+                    messages, temperature=effective_temperature
+                ):
                     answer_text += delta
                     yield _serialize_event({"type": "delta", "content": delta})
 
@@ -166,8 +214,8 @@ async def stream_chat(
                 message_id=user_message.id,
                 query=question,
                 retrieved_chunks=retrieved_payload,
-                top_k=top_k or settings.rag_top_k,
-                rerank_enabled=bool(rerank_enabled or settings.rerank_enabled),
+                top_k=effective_top_k,
+                rerank_enabled=effective_rerank,
                 latency_ms=elapsed_ms,
             )
             session.add(log)

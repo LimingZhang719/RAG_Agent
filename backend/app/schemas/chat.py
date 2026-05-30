@@ -6,12 +6,27 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.core.config import settings
 from app.db.models.enums import MessageRole
+
+
+class ChatSessionSettings(BaseModel):
+    top_k: int = Field(default=settings.rag_top_k, ge=1, le=50)
+    rerank_enabled: bool = Field(default=settings.rerank_enabled)
+    temperature: float = Field(default=0.7, ge=0, le=2)
+    system_prompt: str | None = Field(default=None, max_length=4000)
 
 
 class ChatSessionCreate(BaseModel):
     title: str | None = Field(default=None, max_length=255)
     kb_ids: list[UUID] = Field(default_factory=list)
+    settings: ChatSessionSettings | None = None
+
+
+class ChatSessionUpdate(BaseModel):
+    title: str | None = Field(default=None, max_length=255)
+    kb_ids: list[UUID] | None = None
+    settings: ChatSessionSettings | None = None
 
 
 class ChatSessionResponse(BaseModel):
@@ -21,6 +36,7 @@ class ChatSessionResponse(BaseModel):
     user_id: UUID
     title: str | None
     kb_ids: list[str] | None
+    settings: ChatSessionSettings = Field(default_factory=ChatSessionSettings)
     is_archived: bool
     created_at: datetime
     updated_at: datetime
@@ -47,6 +63,8 @@ class ChatStreamRequest(BaseModel):
     kb_ids: list[UUID] = Field(default_factory=list)
     top_k: int | None = Field(default=None, ge=1, le=50)
     rerank_enabled: bool | None = None
+    temperature: float | None = Field(default=None, ge=0, le=2)
+    system_prompt: str | None = Field(default=None, max_length=4000)
 
 
 class CitationItem(BaseModel):
