@@ -1,5 +1,5 @@
 import { Button, Card, Input, Space, Typography } from "antd";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -18,12 +18,6 @@ interface ChatWindowProps {
   isStreaming?: boolean;
 }
 
-const roleLabelMap: Record<ChatMessageView["role"], string> = {
-  user: "你",
-  assistant: "助手",
-  system: "系统"
-};
-
 export function ChatWindow({
   placeholder = "输入问题，开始对话",
   messages,
@@ -31,6 +25,18 @@ export function ChatWindow({
   isStreaming = false
 }: ChatWindowProps) {
   const [inputValue, setInputValue] = useState("");
+  const messagesRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const messagesElement = messagesRef.current;
+    if (!messagesElement) {
+      return;
+    }
+    messagesElement.scrollTo({
+      top: messagesElement.scrollHeight,
+      behavior: "smooth"
+    });
+  }, [messages]);
 
   const handleSend = () => {
     const trimmed = inputValue.trim();
@@ -43,20 +49,26 @@ export function ChatWindow({
 
   return (
     <Card className="chat-window">
-      <div className="chat-messages">
+      <div className="chat-messages" ref={messagesRef}>
         {messages.length === 0 ? (
-          <div className="chat-message">
-            <Text strong>系统</Text>
-            <Text>选择知识库后开始提问。</Text>
+          <div className="chat-message chat-message-system">
+            <div className="chat-bubble">
+              <Text strong>系统</Text>
+              <Text>选择知识库后开始提问。</Text>
+            </div>
           </div>
         ) : (
           messages.map((message) => (
-            <div key={message.id} className="chat-message">
-              <Text strong>{roleLabelMap[message.role]}</Text>
-              <div className="chat-markdown">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                  {message.content}
-                </ReactMarkdown>
+            <div
+              key={message.id}
+              className={`chat-message chat-message-${message.role}`}
+            >
+              <div className="chat-bubble">
+                <div className="chat-markdown">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {message.content}
+                  </ReactMarkdown>
+                </div>
               </div>
             </div>
           ))

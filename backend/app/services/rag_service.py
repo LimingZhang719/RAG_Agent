@@ -32,10 +32,22 @@ from app.models_gateway.llm_client import build_llm_client
 
 logger = logging.getLogger(__name__)
 
+
+def _get_chunk_content(item: RetrievedChunk) -> str:
+    return item.chunk.content.strip()
+
+
+def _filter_non_empty_chunks(chunks: list[RetrievedChunk]) -> list[RetrievedChunk]:
+    return [item for item in chunks if _get_chunk_content(item)]
+
+
 def _build_citations(chunks: list[RetrievedChunk]) -> list[dict[str, Any]]:
     citations: list[dict[str, Any]] = []
     for item in chunks:
-        snippet = item.chunk.content[:300]
+        content = _get_chunk_content(item)
+        if not content:
+            continue
+        snippet = content[:300]
         citations.append(
             {
                 "document_id": str(item.chunk.document_id),
@@ -53,7 +65,9 @@ def _build_context(chunks: list[RetrievedChunk]) -> str:
         return ""
     lines: list[str] = []
     for idx, item in enumerate(chunks, start=1):
-        content = item.chunk.content.strip().replace("\n", " ")
+        content = _get_chunk_content(item).replace("\n", " ")
+        if not content:
+            continue
         lines.append(f"[{idx}] {content}")
     return "\n\n".join(lines)
 
@@ -154,6 +168,7 @@ async def stream_chat(
                 effective_top_k,
                 rerank_enabled=effective_rerank,
             )
+            retrieved = _filter_non_empty_chunks(retrieved)
 
             retrieved_sorted = sorted(
                 retrieved,

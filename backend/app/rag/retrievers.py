@@ -31,6 +31,10 @@ def _visibility_filter(user: User):
     )
 
 
+def _non_empty_content_filter():
+    return func.length(func.btrim(Chunk.content)) > 0
+
+
 def _normalize_scores(scores: list[float]) -> list[float]:
     if not scores:
         return []
@@ -52,6 +56,7 @@ async def _vector_recall(
         select(Chunk, Document.file_name, similarity)
         .join(Document, Document.id == Chunk.document_id)
         .where(Chunk.embedding.isnot(None))
+        .where(_non_empty_content_filter())
         .where(Chunk.kb_id.in_(kb_ids))
         .where(_visibility_filter(user))
         .order_by(similarity.desc())
@@ -86,6 +91,7 @@ async def _keyword_recall(
         select(Chunk, Document.file_name, rank)
         .join(Document, Document.id == Chunk.document_id)
         .where(tsvector.op("@@")(tsquery))
+        .where(_non_empty_content_filter())
         .where(Chunk.kb_id.in_(kb_ids))
         .where(_visibility_filter(user))
         .order_by(rank.desc())

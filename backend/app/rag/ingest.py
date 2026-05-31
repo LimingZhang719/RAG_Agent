@@ -57,7 +57,7 @@ def _clean_documents(documents: list[LlamaDocument]) -> list[LlamaDocument]:
                 stats.original_length,
                 stats.cleaned_length,
             )
-        if not cleaned_text:
+        if not cleaned_text.strip():
             continue
         cleaned_documents.append(
             LlamaDocument(text=cleaned_text, metadata=document.metadata or {})
@@ -129,7 +129,7 @@ def ingest_document_sync(session: Session, document_id: UUID) -> IngestResult:
                     stats.original_length,
                     stats.cleaned_length,
                 )
-            if not content:
+            if not content.strip():
                 continue
             cleaned_nodes.append(node)
             texts.append(content)
