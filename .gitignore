@@ -28,7 +28,7 @@ Thumbs.db
 .DS_Store
 
 # Runtime data
-storage/
+/storage/
 logs/
 
 # Data and artifacts
