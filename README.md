@@ -37,13 +37,13 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -e ".[dev]"
 alembic upgrade head
-uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+uvicorn app.main:app --reload --host 127.0.0.1 --port 18878
 ```
 
 健康检查：
 
-- `http://127.0.0.1:8000/health`
-- `http://127.0.0.1:8000/health/db`
+- `http://127.0.0.1:18878/health`
+- `http://127.0.0.1:18878/health/db`
 
 ## 启动前端
 
